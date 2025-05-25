@@ -98,8 +98,8 @@ export function setCurrentLayerIndex(value) {
 }
 
 export const cameraPositions = {
-    "2D": { x: -1.04, y: -1.31, z: 13.50 },
-    "3D": { x: 0.00, y: 0.01, z: 10.00 }
+    "2D": { x: 0.00, y: 0.00, z: 10.00 },
+    "3D": { x: 0.00, y: 0.00, z: 10.00 }
 };
 
 export function setCameraMode(mode) {
