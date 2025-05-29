@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Рисование в 2D и 3D</title>
+  <style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f0f0f0;
+    padding: 20px;
+  }
+  .layers-panel {
+    position: relative;
+    width: 300px;
+    height: 400px;
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 20px;
+    padding-bottom: 60px; /* место для иконки */
+    box-sizing: border-box;
+  }
+  .layers-content {
+    overflow-y: auto;
+    height: 100%;
+  }
+  .layers-content ul {
+    padding-left: 20px;
+  }
+  .github-link {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #333;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+  }
+  .github-link:hover {
+    color: #000;
+  }
+  .github-link svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+    display: block;
+  }
+</style>
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Основной скрипт -->
+  <script type="module">
+    // === Импорт зависимостей ===
+    import {
+      toggleBrushDropdown,
+      toggleBrushSettings,
+      toggleMeshDropdown,
+      setBrushType,
+      updateBrushThickness,
+      setColor,
+      updateOpacity,
+      updateBrightness,
+      updateContrast
+    } from './toolbar.js';
+
+    import { toggleDrawingMode } from './controls.js';
+    import { addLayer, removeLayer } from './layers.js';
+    import { undo, redo } from './brushTools.js';
+    import { insertPrimitive } from './primitives.js';
+
+    // === Глобализация функций ===
+    window.toggleBrushDropdown = toggleBrushDropdown;
+    window.toggleBrushSettings = toggleBrushSettings;
+    window.toggleMeshDropdown = toggleMeshDropdown;
+    window.setBrushType = setBrushType;
+    window.updateBrushThickness = updateBrushThickness;
+    window.setColor = setColor;
+    window.updateOpacity = updateOpacity;
+    window.updateBrightness = updateBrightness;
+    window.updateContrast = updateContrast;
+    window.toggleDrawingMode = toggleDrawingMode;
+    window.addLayer = addLayer;
+    window.removeLayer = removeLayer;
+    window.undo = undo;
+    window.redo = redo;
+    window.insertPrimitive = insertPrimitive;
+
+    // === Функция сохранения канваса ===
+function saveCanvasAsImage() {
+  // Получите ссылку на renderer
+  const renderer = window.renderer; // убедитесь, что renderer сохранён в глобальной области
+  if (!renderer) {
+    alert('Renderer не найден!');
+    return;
+  }
+
+  const canvas = renderer.domElement;
+  if (!canvas) {
+    alert('Canvas от renderer не найден!');
+    return;
+  }
+
+  const link = document.createElement('a');
+  link.download = 'canvas_snapshot.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+    // Глобализация функции сохранения
+    window.saveCanvasAsImage = saveCanvasAsImage;
+  </script>
+</head>
+<body>
+  <div id="toolbar">
+    <div id="mouseIndicator" style="display: none;">Режим: Рисование</div>
+
+    <!-- Кисть -->
+    <button id="brushButton" onclick="toggleBrushDropdown()" title="Кисть">🖌️</button>
+    <div id="brushDropdown" class="settings-menu">
+      <span class="close-btn" onclick="toggleBrushDropdown()">×</span>
+      <div class="brush-item" data-brush-type="round" onclick="setBrushType('round')" title="Круглая кисть">⚫</div>
+      <div class="brush-item" data-brush-type="square" onclick="setBrushType('square')" title="Квадратная кисть">⬛</div>
+      <div class="brush-item" data-brush-type="spray" onclick="setBrushType('spray')" title="Спрей">💨</div>
+      <div class="brush-item" data-brush-type="watercolor" onclick="setBrushType('watercolor')" title="Акварель">💧</div>
+      <div class="brush-item" data-brush-type="oil" onclick="setBrushType('oil')" title="Масляная краска">🎨</div>
+      <div class="brush-item" data-brush-type="eraser" onclick="setBrushType('eraser')" title="Ластик">⌫</div>
+    </div>
+
+    <!-- Настройки кисти -->
+    <button onclick="toggleBrushSettings()" title="Настройки">⚙️</button>
+    <div id="brushSettingsDropdown" class="settings-menu">
+      <span class="close-btn" onclick="toggleBrushSettings()">×</span>
+      <div>
+        <label for="brushThicknessSetting">📏 Толщина:</label>
+        <input type="range" id="brushThicknessSetting" min="1" max="20" value="10"
+               onchange="updateBrushThickness(this.value)" />
+      </div>
+      <div>
+        <label for="colorPickerSetting">🎨 Цвет:</label>
+        <input type="color" id="colorPickerSetting" value="#000000"
+               onchange="setColor(this.value)" />
+      </div>
+      <div>
+        <label for="opacitySetting">👁️ Непрозрачность:</label>
+        <input type="range" id="opacitySetting" min="0" max="100" value="100"
+               onchange="updateOpacity(this.value)" />
+      </div>
+      <div>
+        <label for="brightnessSetting">☀️ Яркость:</label>
+        <input type="range" id="brightnessSetting" min="-100" max="100" value="0"
+               onchange="updateBrightness(this.value)" />
+      </div>
+      <div>
+        <label for="contrastSetting">◐ Контраст:</label>
+        <input type="range" id="contrastSetting" min="-100" max="100" value="0"
+               onchange="updateContrast(this.value)" />
+      </div>
+    </div>
+
+    <!-- Примитивы -->
+    <button id="meshButton" onclick="toggleMeshDropdown()" title="Примитивы">📐</button>
+    <div id="meshCategorySelect" class="settings-menu" style="display: none;">
+      <span class="close-btn" onclick="toggleMeshDropdown()">×</span>
+      <div style="margin: 10px 0; font-weight: bold;">Выберите тип примитивов:</div>
+      <button onclick="showMeshList('2D')">2D</button>
+      <button onclick="showMeshList('3D')">3D</button>
+    </div>
+    <div id="meshDropdown" class="settings-menu" style="display: none; max-height: 60vh; overflow-y: auto;">
+      <span class="close-btn" onclick="toggleMeshDropdown()">×</span>
+    </div>
+
+    <!-- Переключение 2D/3D -->
+    <button id="toggleModeButton" onclick="toggleDrawingMode()" title="Переключить режим">🔄</button>
+  </div>
+
+  <button onclick="saveCanvasAsImage()" style="position: absolute; top: 10px; right: 10px; z-index: 10;">
+    Сохранить изображение
+  </button>
+
+  <!-- Индикатор позиции камеры -->
+  <div id="cameraPositionDisplay"
+       style="position:fixed; top:10px; left:10px; padding:6px 12px;
+              background:#007aff; color:#fff; font-family:monospace;
+              font-size:12px; z-index:1000; border-radius:4px;">
+  </div>
+
+  <!-- Панель слоёв -->
+  <div id="layerPanel" style="position:fixed; top:60px; right:10px; width:200px;
+                              background:#f0f0f0; padding:10px; border-radius:4px;
+                              box-shadow:0 2px 6px rgba(0,0,0,0.2);">
+    <button onclick="addLayer()" title="Добавить слой">➕ Добавить слой</button>
+    <button onclick="removeLayer()" title="Удалить слой">➖ Удалить слой</button>
+    <button id="undoButton" onclick="undo()" title="Отменить">↩️ Отменить</button>
+    <button id="redoButton" onclick="redo()" title="Повторить">↪️ Повторить</button>
+    <div class="layer-list" id="layerList" style="margin:10px 0; max-height:150px; overflow-y:auto;"></div>
+
+    <div id="objectPanel" style="margin-top:1em;">
+      <h4>📑 Объекты текущего слоя</h4>
+      <ul id="objectList" style="list-style:none; padding-left:0;
+                                 max-height:150px; overflow-y:auto; margin:0;">
+        <li>— Нет объектов —</li>
+      </ul>
+    </div>
+    <a href="https://github.com/Goamo/Catarse" target="_blank" rel="noopener noreferrer" class="github-link" aria-label="GitHub Repository">
+    <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8a8 8 0 005.47 7.59c.4.07.55-.17.55-.38
+        0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01
+        1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
+        0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.68 7.68 0 012-.27c.68.003
+        1.36.092 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15
+        0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01
+        8.01 0 0016 8c0-4.42-3.58-8-8-8z"/>
+    </svg>
+  </a>
+
+  </div>
+
+  <!-- Канвас -->
+  <canvas id="unifiedCanvas" style="width:100%; height:100vh; display:block;"></canvas>
+
+  <!-- Зависимости -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+  <script type="module" src="index.js"></script>
+</body>
+</html>
